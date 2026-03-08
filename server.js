@@ -1,186 +1,217 @@
-const http = require('http');
-const fs   = require('fs');
-const path = require('path');
+/**
+ * TUG OF WAR — Servidor Multijugador
+ * WebSockets en tiempo real
+ * Puerto: 3000
+ */
+
+const http    = require('http');
+const fs      = require('fs');
+const path    = require('path');
 const { WebSocketServer } = require('ws');
 
-const PORT = process.env.PORT || 3000;
+const PORT = 3000;
 
 /* ══════════════════════════════════════
-   ESTADO DEL JUEGO
+   ESTADO DEL JUEGO (centralizado)
 ══════════════════════════════════════ */
-let gameDifficulty = 'easy';
-let gameStarted    = false;
-let gamePaused     = false;
-let timerInterval  = null;
-
-const MA = 5, WT = 50; // Mover 5 por respuesta, ganar en 50
-
-function rnd(a, b) { return Math.floor(Math.random() * (b - a + 1)) + a; }
-function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
-
-function genQ() {
-  const E = gameDifficulty === 'easy';
-  const H = gameDifficulty === 'hard';
-  const t = rnd(0, E ? 3 : H ? 7 : 5);
-  let a, b, ans, text;
-
-  if (t === 0) { // Suma directa
-    a = rnd(1, E?5:H?20:10); b = rnd(1, E?5:H?20:10);
-    ans = a+b; text = a+' + '+b+' = ?';
-  } else if (t === 1) { // Resta directa
-    a = rnd(2, E?10:H?20:15); b = rnd(1, a);
-    ans = a-b; text = a+' - '+b+' = ?';
-  } else if (t === 2) { // Suma con incógnita
-    a = rnd(1, E?5:H?15:10); b = rnd(1, E?5:H?15:10);
-    ans = b; text = a+' + ? = '+(a+b);
-  } else if (t === 3) { // Contar — ¿cuántos hay?
-    a = rnd(1, E?8:H?20:12);
-    ans = a; text = '¿Cuánto es '+a+' + 0?';
-  } else if (t === 4) { // Resta con incógnita
-    a = rnd(3, E?10:H?20:15); b = rnd(1, a-1);
-    ans = b; text = a+' - ? = '+(a-b);
-  } else if (t === 5) { // Suma tres números
-    a = rnd(1, E?4:H?10:6); b = rnd(1, E?4:H?10:6); const c=rnd(1,E?3:H?8:5);
-    ans = a+b+c; text = a+' + '+b+' + '+c+' = ?';
-  } else if (t === 6) { // Doble
-    a = rnd(1, H?15:8);
-    ans = a*2; text = 'Doble de '+a+' = ?';
-  } else { // Completar
-    a = rnd(1, H?15:10); b = rnd(a+1, a+H?15:8);
-    ans = b-a; text = a+' + ? = '+b;
-  }
-  return { text, answer: ans };
-}
-
 function freshState() {
   const q = genQ();
   return {
-    ans: q.answer, qtext: q.text,
-    pos: 0, rnd: 1,
-    sb: 0, sr: 0,
-    cb: 0, cr: 0,
-    over: false,
-    timer: 30,
-    ib: '', ir: ''
+    ans:   q.answer,
+    qtext: q.text,
+    pos:   0,          // -50..+50  (neg=azul gana, pos=rojo gana)
+    rnd:   1,
+    sb:    0,  sr:  0, // puntos totales
+    cb:    0,  cr:  0, // correctas por equipo
+    over:  false,
+    timer: 28,
+    ib:    '',  ir: '' // buffers de input
   };
 }
 
 let G = freshState();
+let timerInterval = null;
 
 /* ══════════════════════════════════════
-   CLIENTES
+   CLIENTES CONECTADOS
+   tipo: 'screen' | 'blue' | 'red'
 ══════════════════════════════════════ */
-const clients = new Map(); // ws → { type }
+const clients = new Map(); // ws -> { type }
 
-function broadcastAll(msg) {
+/* ══════════════════════════════════════
+   GENERADOR DE PREGUNTAS
+══════════════════════════════════════ */
+function rnd(a, b) { return Math.floor(Math.random() * (b - a + 1)) + a; }
+function genQ() {
+  var op, a, b, ans;
+  if (Math.random() < 0.5) {
+    /* Sumas: números pequeños, resultado máximo 18 */
+    op = '+'; a = rnd(1, 9); b = rnd(1, 9); ans = a + b;
+  } else {
+    /* Restas: resultado siempre positivo, nunca negativo */
+    op = '-'; b = rnd(1, 9); a = rnd(b, b + 9); ans = a - b;
+  }
+  return { text: a + ' ' + op + ' ' + b + ' = ?', answer: ans };
+}
+
+/* ══════════════════════════════════════
+   BROADCAST
+══════════════════════════════════════ */
+function broadcast(msg, exclude) {
   const raw = JSON.stringify(msg);
   for (const [ws] of clients) {
-    if (ws.readyState === 1) ws.send(raw);
+    if (ws !== exclude && ws.readyState === 1) ws.send(raw);
   }
 }
-function sendTo(ws, msg) {
-  if (ws.readyState === 1) ws.send(JSON.stringify(msg));
-}
+function broadcastAll(msg) { broadcast(msg, null); }
+function sendTo(ws, msg)   { if (ws.readyState===1) ws.send(JSON.stringify(msg)); }
+
 function sendState(ws) {
-  sendTo(ws, { type:'state', ...G });
+  sendTo(ws, {
+    type:  'state',
+    qtext: G.qtext,
+    pos:   G.pos,
+    rnd:   G.rnd,
+    sb:    G.sb,
+    sr:    G.sr,
+    over:  G.over,
+    timer: G.timer,
+    ib:    G.ib,
+    ir:    G.ir
+  });
+}
+
+function broadcastState() {
+  const msg = {
+    type:  'state',
+    qtext: G.qtext,
+    pos:   G.pos,
+    rnd:   G.rnd,
+    sb:    G.sb,
+    sr:    G.sr,
+    over:  G.over,
+    timer: G.timer,
+    ib:    G.ib,
+    ir:    G.ir
+  };
+  broadcastAll(msg);
 }
 
 /* ══════════════════════════════════════
    TIMER
 ══════════════════════════════════════ */
+const TS = 50;
 function startTimer() {
   clearInterval(timerInterval);
-  G.timer = 30;
+  G.timer = TS;
   timerInterval = setInterval(() => {
-    if (gamePaused) return;
     G.timer--;
-    broadcastAll({ type:'timer', value: G.timer });
+    broadcastAll({ type: 'timer', value: G.timer });
     if (G.timer <= 0) {
       clearInterval(timerInterval);
-      broadcastAll({ type:'timeout' });
-      setTimeout(nextQ, 1200);
+      broadcastAll({ type: 'timeout' });
+      setTimeout(() => nextQ(), 1000);
     }
   }, 1000);
 }
 
 function nextQ() {
   if (G.over) return;
-  const q = genQ();
-  G.ans = q.answer; G.qtext = q.text;
-  G.rnd++; G.ib = ''; G.ir = '';
-  wrongThisQ.clear();
-  broadcastAll({ type:'nextQ', qtext: q.text, rnd: G.rnd });
+  const q  = genQ();
+  G.ans    = q.answer;
+  G.qtext  = q.text;
+  G.rnd   += 1;
+  G.ib     = '';
+  G.ir     = '';
+  broadcastAll({ type: 'nextQ', qtext: G.qtext, rnd: G.rnd });
   startTimer();
 }
 
-let wrongThisQ = new Set();
+/* ══════════════════════════════════════
+   LÓGICA DE RESPUESTA
+══════════════════════════════════════ */
+const MA = 5, WT = 50;
 
 function handleSubmit(team) {
-  if (!gameStarted || gamePaused || G.over) return;
+  if (G.over) return;
   const buf = team === 'b' ? G.ib : G.ir;
-  const val = parseInt(buf);
-  if (isNaN(val)) return;
+  if (!buf) return;
+  const val = parseInt(buf, 10);
+
+  // limpiar buffer
+  if (team === 'b') G.ib = ''; else G.ir = '';
+  broadcastAll({ type: 'clearInput', team });
 
   if (val === G.ans) {
-    // Correcto
-    wrongThisQ.clear();
-    if (team === 'b') { G.sb += 10; G.cb++; G.pos -= MA; }
-    else              { G.sr += 10; G.cr++; G.pos += MA; }
-    broadcastAll({ type:'correct', team, pos: G.pos, sb: G.sb, sr: G.sr, cb: G.cb, cr: G.cr });
+    clearInterval(timerInterval);
+    if (team === 'b') { G.sb++; G.cb++; G.pos -= MA; }
+    else              { G.sr++; G.cr++; G.pos += MA; }
+
+    broadcastAll({ type: 'correct', team, sb: G.sb, sr: G.sr, pos: G.pos });
+
     if (Math.abs(G.pos) >= WT) {
       G.over = true;
-      clearInterval(timerInterval);
-      const winner = G.pos <= -WT ? 'b' : 'r';
-      setTimeout(() => broadcastAll({ type:'win', team: winner, rnd: G.rnd, cb: G.cb, cr: G.cr }), 400);
+      broadcastAll({ type: 'win', team, rnd: G.rnd, cb: G.cb, cr: G.cr });
     } else {
-      setTimeout(nextQ, 800);
+      setTimeout(() => nextQ(), 900);
     }
   } else {
-    // Incorrecto
-    wrongThisQ.add(team);
-    broadcastAll({ type:'wrong', team });
-    if (wrongThisQ.size >= 2) {
-      broadcastAll({ type:'bothWrong' });
-      setTimeout(nextQ, 1200);
-    }
+    broadcastAll({ type: 'wrong', team });
   }
 }
 
 function handleInput(team, digit) {
-  if (!gameStarted || G.over) return;
-  const buf = (team === 'b' ? G.ib : G.ir) + digit;
-  if (team === 'b') G.ib = buf; else G.ir = buf;
-  broadcastAll({ type:'input', team, value: buf });
+  if (G.over) return;
+  const k = team === 'b' ? 'ib' : 'ir';
+  if (G[k].length >= 4) return;
+  G[k] += digit;
+  broadcastAll({ type: 'input', team, value: G[k] });
 }
+
 function handleDelete(team) {
-  if (!gameStarted || G.over) return;
-  const buf = team === 'b' ? G.ib : G.ir;
-  const nb = buf.slice(0,-1);
-  if (team === 'b') G.ib = nb; else G.ir = nb;
-  broadcastAll({ type:'input', team, value: nb });
+  const k = team === 'b' ? 'ib' : 'ir';
+  G[k] = G[k].slice(0, -1);
+  broadcastAll({ type: 'input', team, value: G[k] });
 }
 
 /* ══════════════════════════════════════
-   WEBSOCKET
+   HTTP SERVER — sirve archivos estáticos
 ══════════════════════════════════════ */
-const httpServer = http.createServer((req, res) => {
-  if (req.url === '/ping') { res.writeHead(200); res.end('OK'); return; }
-  let filePath;
-  if (req.url === '/' || req.url === '/index.html') filePath = path.join(__dirname, 'index.html');
-  else if (req.url === '/blue') filePath = path.join(__dirname, 'blue.html');
-  else if (req.url === '/red')  filePath = path.join(__dirname, 'red.html');
-  else filePath = path.join(__dirname, req.url.replace(/^\//, ''));
+const MIME = {
+  '.html': 'text/html; charset=utf-8',
+  '.js':   'application/javascript',
+  '.css':  'text/css',
+  '.png':  'image/png',
+  '.ico':  'image/x-icon'
+};
 
-  const ext = path.extname(filePath);
-  const mime = { '.html':'text/html', '.js':'application/javascript', '.css':'text/css',
-                 '.mp3':'audio/mpeg', '.png':'image/png', '.jpg':'image/jpeg' }[ext] || 'text/plain';
+const httpServer = http.createServer((req, res) => {
+  let filePath;
+  if (req.url === '/' || req.url === '/index.html') {
+    filePath = path.join(__dirname, 'index.html');
+  } else if (req.url === '/blue') {
+    filePath = path.join(__dirname, 'blue.html');
+  } else if (req.url === '/red') {
+    filePath = path.join(__dirname, 'red.html');
+  } else {
+    filePath = path.join(__dirname, req.url.replace(/^\//, ''));
+  }
+
   fs.readFile(filePath, (err, data) => {
-    if (err) { res.writeHead(404); res.end('Not found'); return; }
+    if (err) {
+      res.writeHead(404); res.end('Not found');
+      return;
+    }
+    const ext  = path.extname(filePath);
+    const mime = MIME[ext] || 'text/plain';
     res.writeHead(200, { 'Content-Type': mime });
     res.end(data);
   });
 });
 
+/* ══════════════════════════════════════
+   WEBSOCKET SERVER
+══════════════════════════════════════ */
 const wss = new WebSocketServer({ server: httpServer });
 
 wss.on('connection', (ws) => {
@@ -189,69 +220,70 @@ wss.on('connection', (ws) => {
   ws.on('message', (raw) => {
     let msg;
     try { msg = JSON.parse(raw); } catch { return; }
-    if (!msg || !msg.type) return;
 
     switch (msg.type) {
-      case 'ping': return;
 
       case 'register':
         clients.set(ws, { type: msg.role });
-        if (!gameStarted) sendTo(ws, { type:'waiting' });
-        else { sendState(ws); if (gamePaused) sendTo(ws, { type:'pause', paused:true }); }
-        if (msg.role === 'blue' || msg.role === 'red')
-          broadcastAll({ type:'playerJoined', role: msg.role });
+        sendState(ws);
+        console.log(`[+] Conectado: ${msg.role}`);
+        // Notificar a pantalla que alguien se unió
+        broadcastAll({ type: 'playerJoined', role: msg.role });
         break;
 
-      case 'startGame':
-        if (!gameStarted) {
-          gameDifficulty = msg.difficulty || 'easy';
-          gameStarted = true; gamePaused = false;
-          G = freshState();
-          // En modo solo, el servidor maneja ambos equipos desde la pantalla
-          if (msg.solo) G.soloMode = true;
-          broadcastAll({ type:'restart', qtext: G.qtext, solo: !!msg.solo });
-          startTimer();
-        }
+      case 'input':
+        handleInput(msg.team, msg.digit);
         break;
 
-      case 'input':  handleInput(msg.team, msg.digit); break;
-      case 'delete': handleDelete(msg.team); break;
-      case 'submit': handleSubmit(msg.team); break;
+      case 'delete':
+        handleDelete(msg.team);
+        break;
 
-      case 'pause':
-        gamePaused = !gamePaused;
-        broadcastAll({ type:'pause', paused: gamePaused });
+      case 'submit':
+        handleSubmit(msg.team);
         break;
 
       case 'restart':
         clearInterval(timerInterval);
-        gameStarted = false; gamePaused = false;
         G = freshState();
-        broadcastAll({ type:'restart', qtext: G.qtext });
+        broadcastAll({ type: 'restart', qtext: G.qtext });
+        startTimer();
         break;
     }
   });
 
   ws.on('close', () => {
     const info = clients.get(ws);
-    clients.delete(ws);
-    if (info && info.type === 'screen') {
-      clearInterval(timerInterval);
-      gameStarted = false; gamePaused = false;
-      G = freshState();
-      broadcastAll({ type:'hostLeft' });
+    if (info) {
+      console.log(`[-] Desconectado: ${info.type}`);
+      broadcastAll({ type: 'playerLeft', role: info.type });
     }
+    clients.delete(ws);
   });
-
-  ws.on('error', () => ws.close());
 });
 
+/* ── Arrancar ── */
 httpServer.listen(PORT, '0.0.0.0', () => {
-  console.log(`🐾 La Aventura Capybara — Puerto ${PORT}`);
-  console.log(`   Pantalla : http://localhost:${PORT}`);
-  console.log(`   Azul     : http://localhost:${PORT}/blue`);
-  console.log(`   Rojo     : http://localhost:${PORT}/red`);
+  console.log('');
+  console.log('╔══════════════════════════════════════╗');
+  console.log('║   TUG OF WAR — Servidor Online       ║');
+  console.log('╠══════════════════════════════════════╣');
+
+  // Mostrar IPs disponibles
+  const { networkInterfaces } = require('os');
+  const nets = networkInterfaces();
+  for (const name of Object.keys(nets)) {
+    for (const net of nets[name]) {
+      if (net.family === 'IPv4' && !net.internal) {
+        console.log(`║  📺 Pantalla : http://${net.address}:${PORT}         `);
+        console.log(`║  📱 Equipo 1 : http://${net.address}:${PORT}/blue    `);
+        console.log(`║  📱 Equipo 2 : http://${net.address}:${PORT}/red     `);
+        console.log('╚══════════════════════════════════════╝');
+      }
+    }
+  }
+  console.log('');
 });
 
-process.on('uncaughtException',  e => console.error('[error]', e.message));
-process.on('unhandledRejection', e => console.error('[reject]', e));
+// Iniciar primer timer
+startTimer();

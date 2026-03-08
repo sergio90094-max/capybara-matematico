@@ -2,227 +2,362 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>🔵 Equipo Azul — Capybara</title>
-<link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@700;900&display=swap" rel="stylesheet">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Equipo 1 — Sumas y Restas</title>
 <style>
-*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
-body{
-  background:linear-gradient(160deg,#0d2a6b,#1a3a8f,#0a1a4a);
-  min-height:100vh;display:flex;flex-direction:column;align-items:center;
-  font-family:'Nunito',sans-serif;color:white;padding:10px;
-  user-select:none;
+@import url('https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@700;800;900&display=swap');
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --blue:#1565C0; --bluel:#1E88E5; --blued:#0D47A1;
+  --bg:#E3F2FD; --card:#fff; --border:#BBDEFB;
 }
-#status{
-  font-family:'Fredoka One',cursive;font-size:.9rem;
-  padding:5px 18px;border-radius:50px;margin-bottom:8px;
-  background:rgba(0,0,0,.3);border:2px solid #4477cc;
-}
-#status.on{border-color:#44ee44;color:#88ff88;}
-#team-title{
-  font-family:'Fredoka One',cursive;font-size:1.8rem;color:#64b5f6;
-  text-shadow:0 0 20px rgba(100,180,255,.5);margin-bottom:4px;
-}
-#scores{display:flex;gap:16px;margin-bottom:8px;}
-.sc{background:rgba(0,0,0,.3);border-radius:12px;padding:4px 14px;text-align:center;font-size:.75rem;color:#aaa;}
-.sc span{display:block;font-family:'Fredoka One',cursive;font-size:1.4rem;color:white;}
-#qbox{
-  background:rgba(0,0,0,.4);border:2px solid rgba(100,150,255,.3);
-  border-radius:16px;padding:10px 20px;text-align:center;
-  width:100%;max-width:340px;margin-bottom:8px;
-}
-#qlabel{font-size:.7rem;color:#88aaff;letter-spacing:2px;margin-bottom:2px;}
-#qtext{font-family:'Fredoka One',cursive;font-size:1.6rem;color:white;min-height:40px;}
-#timer-row{display:flex;align-items:center;gap:8px;margin-bottom:6px;}
-#tbar-wrap{flex:1;height:8px;background:rgba(255,255,255,.15);border-radius:4px;}
-#tbar{height:100%;background:#44ee44;border-radius:4px;transition:width .9s linear,background .3s;}
-#tnum{font-family:'Fredoka One',cursive;font-size:1rem;color:white;min-width:26px;text-align:right;}
-#ans-box{
-  background:rgba(0,0,0,.5);border:3px solid #4477cc;border-radius:16px;
-  padding:10px 20px;text-align:center;width:100%;max-width:340px;margin-bottom:8px;
-}
-#ans-label{font-size:.7rem;color:#88aaff;letter-spacing:2px;}
-#ans-val{font-family:'Fredoka One',cursive;font-size:2.8rem;color:#64b5f6;min-height:52px;}
-#fb{
-  font-family:'Fredoka One',cursive;font-size:1.1rem;
-  min-height:30px;text-align:center;margin-bottom:6px;
-  padding:4px 12px;border-radius:10px;
-}
-#fb.ok{background:rgba(50,200,50,.25);color:#88ff88;}
-#fb.w{background:rgba(200,50,50,.25);color:#ff7766;}
-.numpad{
-  display:grid;grid-template-columns:repeat(3,1fr);gap:8px;
-  width:100%;max-width:340px;
-}
-.nb{
-  padding:18px 0;border:none;border-radius:16px;
-  font-family:'Fredoka One',cursive;font-size:1.6rem;
-  color:white;cursor:pointer;transition:all .12s;
-  background:rgba(40,80,200,.55);border:2px solid rgba(80,120,255,.4);
-}
-.nb:active{transform:scale(.9);background:rgba(40,80,200,.9);}
-.del{background:rgba(100,60,180,.55)!important;font-size:1.3rem;}
-.ok-btn{
-  grid-column:span 2;background:rgba(30,160,60,.8)!important;
-  font-size:1.3rem;border:2px solid rgba(60,220,80,.5)!important;
-}
-.zero{grid-column:span 1;}
 
-#pause-overlay{
-  position:fixed;inset:0;background:rgba(0,0,0,.85);
-  display:none;align-items:center;justify-content:center;flex-direction:column;gap:10px;z-index:100;
+/* ── LAYOUT PRINCIPAL: todo en 100dvh sin scroll ── */
+html, body {
+  width: 100%; height: 100dvh;
+  max-height: 100dvh;
+  overflow: hidden;
+  background: var(--bg);
+  font-family: 'Nunito', sans-serif;
+  user-select: none;
+  display: flex;
+  flex-direction: column;
 }
-#pause-overlay.show{display:flex;}
-#pause-overlay .pe{font-size:3rem;}
-#pause-overlay .pt{font-family:'Fredoka One',cursive;font-size:1.8rem;color:white;}
-#pause-overlay .ps{color:#aaa;text-align:center;padding:0 20px;}
+
+/* HEADER — compacto */
+#header {
+  background: var(--blue);
+  padding: 8px 12px 6px;
+  text-align: center;
+  flex-shrink: 0;
+}
+#header h1 {
+  font-family: 'Fredoka One', cursive;
+  font-size: 1.2rem;
+  color: white;
+}
+#conn-status {
+  font-size: .65rem;
+  font-weight: 900;
+  color: rgba(255,255,255,.7);
+  margin-top: 1px;
+}
+#conn-status.ok { color: #A5D6A7; }
+
+/* SCORE BAR — compacto */
+#score-bar {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  padding: 5px 12px 0;
+  flex-shrink: 0;
+}
+.sc-chip {
+  font-family: 'Fredoka One', cursive;
+  font-size: .8rem;
+  padding: 3px 12px;
+  border-radius: 50px;
+  color: white;
+}
+.sc-chip.b { background: var(--blue); }
+.sc-chip.r { background: #C62828; }
+
+/* QUESTION BOX — compacto */
+#qbox {
+  background: var(--card);
+  margin: 5px 10px 0;
+  border-radius: 12px;
+  padding: 6px 12px;
+  text-align: center;
+  border: 2px solid var(--border);
+  box-shadow: 0 2px 8px rgba(21,101,192,.1);
+  flex-shrink: 0;
+}
+#qlabel {
+  font-size: .55rem;
+  font-weight: 900;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: #90A4AE;
+  margin-bottom: 1px;
+}
+#qtext {
+  font-family: 'Fredoka One', cursive;
+  font-size: clamp(1.6rem, 7vw, 2.2rem);
+  color: var(--blued);
+  line-height: 1.1;
+  transition: opacity .18s, transform .18s;
+}
+#qtext.fade { opacity:0; transform:scale(.92); }
+
+/* TIMER — compacto */
+#tbar-wrap {
+  margin: 5px 10px 0;
+  height: 6px;
+  background: #ddd;
+  border-radius: 99px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+#tbar {
+  height: 100%; width: 100%;
+  background: linear-gradient(90deg, #4CAF50, #F9A825, #F44336);
+  border-radius: 99px;
+  transition: width 1s linear;
+}
+#timer-num {
+  text-align: center;
+  font-family: 'Fredoka One', cursive;
+  font-size: .95rem;
+  color: #2E7D32;
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+#timer-num.ok     { color: #F9A825; }
+#timer-num.urgent { color: #E53935; animation: tpulse .5s infinite alternate; }
+@keyframes tpulse { to { transform: scale(1.1); } }
+
+/* ANSWER DISPLAY — compacto */
+#ans-box {
+  margin: 5px 10px 0;
+  background: var(--card);
+  border: 2.5px solid var(--bluel);
+  border-radius: 12px;
+  text-align: center;
+  padding: 5px 10px;
+  flex-shrink: 0;
+}
+#ans-val {
+  font-family: 'Fredoka One', cursive;
+  font-size: clamp(1.6rem, 7vw, 2.2rem);
+  color: var(--blue);
+  letter-spacing: 4px;
+  line-height: 1.2;
+}
+
+/* FEEDBACK — compacto */
+#fb {
+  text-align: center;
+  font-weight: 900;
+  font-size: .8rem;
+  height: 1.3em;
+  padding: 1px 0;
+  color: #2E7D32;
+  flex-shrink: 0;
+}
+#fb.w { color: #E53935; }
+
+/* NUMPAD — ocupa todo el espacio restante */
+#numpad {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 6px;
+  padding: 4px 10px 8px;
+  min-height: 0;
+}
+.nb {
+  border: 2px solid var(--border);
+  border-radius: 12px;
+  background: var(--card);
+  font-family: 'Fredoka One', cursive;
+  font-size: clamp(1.3rem, 5vw, 1.8rem);
+  color: var(--blued);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 6px rgba(21,101,192,.1);
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  transition: transform .08s, background .1s;
+  min-height: 0;
+  /* SIN aspect-ratio: 1 para que se adapte al espacio disponible */
+}
+.nb:active { transform: scale(.85); background: var(--bluel); color: white; }
+.nb.zero { grid-column: span 2; }
+.nb.del  { background: #FFEBEE; border-color: #FFCDD2; color: #C62828; }
+.nb.ok   {
+  grid-column: span 3;
+  background: var(--blue);
+  color: white;
+  border: none;
+  font-size: clamp(1rem, 4vw, 1.4rem);
+  box-shadow: 0 4px 14px rgba(21,101,192,.35);
+}
+.nb.ok:active { transform: scale(.96); background: var(--blued); }
+
+/* Overlay fin de juego */
+#over-overlay {
+  display: none;
+  position: fixed; inset: 0;
+  background: rgba(13,71,161,.88);
+  backdrop-filter: blur(6px);
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  text-align: center;
+  padding: 24px;
+}
+#over-overlay.show { display: flex; }
+#over-emoji { font-size: 3.5rem; margin-bottom: 8px; }
+#over-title { font-family: 'Fredoka One', cursive; font-size: 2rem; color: white; margin-bottom: 6px; }
+#over-sub   { font-size: .9rem; color: rgba(255,255,255,.75); font-weight: 800; }
 </style>
 </head>
 <body>
 
-<div id="status">🔄 Conectando...</div>
-<div id="team-title">🔵 Equipo Azul</div>
+<div id="header">
+  <h1>🔵 Equipo 1</h1>
+  <div id="conn-status">Conectando...</div>
+</div>
 
-<div id="scores">
-  <div class="sc">Azul 🔵<span id="sb">0</span></div>
-  <div class="sc">Rojo 🔴<span id="sr">0</span></div>
+<div id="score-bar">
+  <div class="sc-chip b">🔵 <span id="sb">0</span></div>
+  <div class="sc-chip r">🔴 <span id="sr">0</span></div>
 </div>
 
 <div id="qbox">
   <div id="qlabel">¿CUÁNTO ES?</div>
-  <div id="qtext">Esperando...</div>
+  <div id="qtext">...</div>
 </div>
 
-<div id="timer-row">
-  <div id="tbar-wrap"><div id="tbar" style="width:100%"></div></div>
-  <div id="tnum">30</div>
-</div>
+<div id="tbar-wrap"><div id="tbar"></div></div>
+<div id="timer-num">50</div>
 
 <div id="ans-box">
-  <div id="ans-label">TU RESPUESTA</div>
   <div id="ans-val">?</div>
 </div>
 
 <div id="fb"> </div>
 
-<div class="numpad">
-  <button class="nb" ontouchstart="np('1')" onclick="np('1')">1</button>
-  <button class="nb" ontouchstart="np('2')" onclick="np('2')">2</button>
-  <button class="nb" ontouchstart="np('3')" onclick="np('3')">3</button>
-  <button class="nb" ontouchstart="np('4')" onclick="np('4')">4</button>
-  <button class="nb" ontouchstart="np('5')" onclick="np('5')">5</button>
-  <button class="nb" ontouchstart="np('6')" onclick="np('6')">6</button>
-  <button class="nb" ontouchstart="np('7')" onclick="np('7')">7</button>
-  <button class="nb" ontouchstart="np('8')" onclick="np('8')">8</button>
-  <button class="nb" ontouchstart="np('9')" onclick="np('9')">9</button>
-  <button class="nb zero" ontouchstart="np('0')" onclick="np('0')">0</button>
-  <button class="nb del" ontouchstart="del()" onclick="del()">⌫</button>
-  <button class="nb ok-btn" ontouchstart="submitAns()" onclick="submitAns()">✓ OK</button>
+<div id="numpad">
+  <button class="nb" onclick="np('1')">1</button>
+  <button class="nb" onclick="np('2')">2</button>
+  <button class="nb" onclick="np('3')">3</button>
+  <button class="nb" onclick="np('4')">4</button>
+  <button class="nb" onclick="np('5')">5</button>
+  <button class="nb" onclick="np('6')">6</button>
+  <button class="nb" onclick="np('7')">7</button>
+  <button class="nb" onclick="np('8')">8</button>
+  <button class="nb" onclick="np('9')">9</button>
+  <button class="nb zero" onclick="np('0')">0</button>
+  <button class="nb del"  onclick="del()">⌫</button>
+  <button class="nb ok"   onclick="sub()">✓ OK</button>
 </div>
 
-<div id="pause-overlay">
-  <div class="pe">⏸</div>
-  <div class="pt">Juego Pausado</div>
-  <div class="ps" id="pause-sub">El profesor pausó el juego</div>
+<div id="over-overlay">
+  <div id="over-emoji">🏁</div>
+  <div id="over-title">¡Juego terminado!</div>
+  <div id="over-sub">El profesor iniciará una nueva partida</div>
 </div>
 
 <script>
-const TEAM='b', TS=30;
-let ws, buf='', pingInterval=null;
+const TEAM = 'b';
+const TS   = 50;
+let ws, buf = '';
 
-function connectWS(){
-  const proto=location.protocol==='https:'?'wss://':'ws://';
-  ws=new WebSocket(proto+location.host);
-  ws.onopen=()=>{
-    ws.send(JSON.stringify({type:'register',role:'blue'}));
-    setStatus('✅ Conectado',true);
-    clearInterval(pingInterval);
-    pingInterval=setInterval(()=>{ if(ws&&ws.readyState===1) ws.send(JSON.stringify({type:'ping'})); },20000);
+function connectWS() {
+  const host = window.location.host;
+  ws = new WebSocket('ws://' + host);
+  ws.onopen = () => {
+    ws.send(JSON.stringify({ type:'register', role:'blue' }));
+    setStatus('✅ Conectado', true);
   };
-  ws.onmessage=e=>{ try{ handle(JSON.parse(e.data)); }catch(err){} };
-  ws.onerror=()=>ws.close();
-  ws.onclose=()=>{
-    clearInterval(pingInterval);
-    setStatus('🔄 Reconectando...',false);
-    setTimeout(connectWS,1500);
+  ws.onmessage = (e) => handle(JSON.parse(e.data));
+  ws.onclose = () => {
+    setStatus('🔄 Reconectando...', false);
+    setTimeout(connectWS, 2000);
   };
 }
-document.addEventListener('visibilitychange',()=>{ if(!document.hidden&&(!ws||ws.readyState!==1)) connectWS(); });
-function send(o){ if(ws&&ws.readyState===1) ws.send(JSON.stringify(o)); }
-function setStatus(txt,on){
-  const s=document.getElementById('status');
-  s.textContent=txt; s.className=on?'on':'';
-}
 
-function handle(msg){
-  switch(msg.type){
+function send(obj) { if(ws && ws.readyState===1) ws.send(JSON.stringify(obj)); }
+
+function handle(msg) {
+  switch(msg.type) {
     case 'state':
-      document.getElementById('qtext').textContent=msg.qtext;
-      document.getElementById('sb').textContent=msg.sb;
-      document.getElementById('sr').textContent=msg.sr;
-      buf=msg.ib||''; document.getElementById('ans-val').textContent=buf||'?';
-      updateTimer(msg.timer); break;
-    case 'pause':
-      document.getElementById('pause-overlay').classList.toggle('show',msg.paused); break;
-    case 'hostLeft':
-      document.getElementById('pause-overlay').classList.add('show');
-      document.getElementById('pause-sub').textContent='El profesor cerró el juego'; break;
-    case 'timer': updateTimer(msg.value); break;
+      document.getElementById('qtext').textContent = msg.qtext;
+      document.getElementById('sb').textContent = msg.sb;
+      document.getElementById('sr').textContent = msg.sr;
+      buf = msg.ib || '';
+      document.getElementById('ans-val').textContent = buf || '?';
+      updateTimer(msg.timer);
+      break;
+    case 'timer':
+      updateTimer(msg.value);
+      break;
+    case 'timeout':
+      showFb('⏱ ¡Tiempo!', '');
+      setTimeout(() => showFb(' ',''), 900);
+      break;
     case 'nextQ':
-      document.getElementById('qtext').textContent=msg.qtext;
-      buf=''; document.getElementById('ans-val').textContent='?';
-      clrFb(); break;
+      const el = document.getElementById('qtext');
+      el.classList.add('fade');
+      setTimeout(() => { el.textContent = msg.qtext; el.classList.remove('fade'); }, 200);
+      buf = '';
+      document.getElementById('ans-val').textContent = '?';
+      showFb(' ','');
+      break;
+    case 'input':
+      if (msg.team === TEAM) { buf = msg.value; document.getElementById('ans-val').textContent = buf || '?'; }
+      break;
+    case 'clearInput':
+      if (msg.team === TEAM) { buf=''; document.getElementById('ans-val').textContent='?'; }
+      break;
     case 'correct':
-      document.getElementById('sb').textContent=msg.sb;
-      document.getElementById('sr').textContent=msg.sr;
-      if(msg.team===TEAM){ setFb('✅ ¡Correcto! +10','ok'); buf=''; document.getElementById('ans-val').textContent='?'; setTimeout(clrFb,800); }
+      document.getElementById('sb').textContent = msg.sb;
+      document.getElementById('sr').textContent = msg.sr;
+      if (msg.team === TEAM) { showFb('✅ ¡Correcto!','ok'); setTimeout(()=>showFb(' ',''),900); }
       break;
     case 'wrong':
-      if(msg.team===TEAM){ setFb('❌ Incorrecto','w'); buf=''; document.getElementById('ans-val').textContent='?'; setTimeout(clrFb,1200); }
+      if (msg.team === TEAM) { showFb('❌ Incorrecto','w'); setTimeout(()=>showFb(' ',''),1300); }
       break;
-    case 'bothWrong': setFb('💀 Los dos fallaron','w'); setTimeout(clrFb,1200); break;
-    case 'timeout': setFb('⏱ Tiempo!',''); buf=''; document.getElementById('ans-val').textContent='?'; setTimeout(clrFb,900); break;
     case 'win':
-      document.getElementById('qtext').textContent=msg.team===TEAM?'🏆 ¡Ganaron!':'😔 Perdieron';
-      setFb(msg.team===TEAM?'🎉 ¡VICTORIA!':'💪 ¡La próxima!', msg.team===TEAM?'ok':'w'); break;
+      document.getElementById('over-overlay').classList.add('show');
+      document.getElementById('over-emoji').textContent = msg.team===TEAM ? '🥇' : '😔';
+      document.getElementById('over-title').textContent = msg.team===TEAM ? '¡Ganaron!' : 'Perdieron...';
+      break;
     case 'restart':
-      document.getElementById('qtext').textContent=msg.qtext||'Esperando...';
-      buf=''; document.getElementById('ans-val').textContent='?';
-      document.getElementById('sb').textContent='0';
-      document.getElementById('sr').textContent='0';
-      clrFb(); break;
+      document.getElementById('over-overlay').classList.remove('show');
+      buf = '';
+      document.getElementById('ans-val').textContent = '?';
+      document.getElementById('sb').textContent = '0';
+      document.getElementById('sr').textContent = '0';
+      const qt = document.getElementById('qtext');
+      qt.classList.add('fade');
+      setTimeout(()=>{ qt.textContent=msg.qtext; qt.classList.remove('fade'); },200);
+      showFb(' ','');
+      break;
   }
 }
 
-function updateTimer(v){
-  document.getElementById('tnum').textContent=v;
-  const pct=v/TS*100;
-  const tb=document.getElementById('tbar');
-  tb.style.width=pct+'%';
-  tb.style.background=v>15?'#44ee44':v>8?'#ffcc44':'#ff5555';
-}
-function setFb(txt,cls){ const e=document.getElementById('fb'); e.textContent=txt; e.className=cls; }
-function clrFb(){ const e=document.getElementById('fb'); e.textContent=' '; e.className=''; }
+function np(d) { send({ type:'input', team:TEAM, digit:d }); }
+function del()  { send({ type:'delete', team:TEAM }); }
+function sub()  { send({ type:'submit', team:TEAM }); }
 
-let lastNp=0;
-function np(d){
-  const now=Date.now(); if(now-lastNp<80)return; lastNp=now;
-  if(buf.length>=3)return;
-  buf+=d; document.getElementById('ans-val').textContent=buf;
-  send({type:'input',team:TEAM,digit:d});
-}
-function del(){
-  if(!buf)return;
-  buf=buf.slice(0,-1);
-  document.getElementById('ans-val').textContent=buf||'?';
-  send({type:'delete',team:TEAM});
-}
-function submitAns(){
-  if(!buf)return;
-  send({type:'submit',team:TEAM});
+function updateTimer(v) {
+  const el = document.getElementById('timer-num');
+  document.getElementById('tbar').style.width = (v/TS*100)+'%';
+  el.textContent = v;
+  if(v<=8) el.className='urgent';
+  else if(v<=15) el.className='ok';
+  else el.className='';
 }
 
-window.addEventListener('load',connectWS);
+function showFb(msg, cls) {
+  const e = document.getElementById('fb');
+  e.textContent = msg;
+  e.className = cls || '';
+}
+
+function setStatus(txt, ok) {
+  const e = document.getElementById('conn-status');
+  e.textContent = txt;
+  e.className = ok ? 'ok' : '';
+}
+
+window.addEventListener('load', connectWS);
 </script>
 </body>
 </html>

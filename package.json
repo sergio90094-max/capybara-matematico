@@ -1,6 +1,12 @@
 {
-  "name": "capybara-game",
+  "name": "tugofwar-online",
   "version": "1.0.0",
-  "scripts": { "start": "node server.js" },
-  "dependencies": { "ws": "^8.16.0" }
+  "description": "Tug of War Matemáticas — Multijugador en red local",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "ws": "^8.16.0"
+  }
 }
