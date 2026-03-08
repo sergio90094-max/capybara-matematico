@@ -59,7 +59,30 @@ body{
   box-shadow:0 6px 20px rgba(60,180,40,0.5);
   transition:all .2s;letter-spacing:1px;
 }
-#play-btn:hover{transform:translateY(-3px);filter:brightness(1.1);}
+#play-btn:hover:not(:disabled){transform:translateY(-3px);filter:brightness(1.1);}
+#play-btn:disabled{background:#555;opacity:0.55;cursor:not-allowed;box-shadow:none;}
+#solo-btn{
+  width:100%;padding:13px;border:none;border-radius:16px;
+  font-family:'Fredoka One',cursive;font-size:1.1rem;
+  background:linear-gradient(135deg,#e8720a,#c45500);
+  color:white;cursor:pointer;margin-top:8px;
+  box-shadow:0 4px 16px rgba(220,100,0,0.45);
+  transition:all .2s;
+}
+#solo-btn:hover{transform:translateY(-2px);filter:brightness(1.1);}
+#player-status{display:flex;gap:10px;margin:12px 0 6px;}
+.pstatus-pill{
+  flex:1;padding:9px 8px;text-align:center;
+  background:rgba(255,255,255,0.07);
+  border:2px solid rgba(255,255,255,0.15);
+  border-radius:12px;font-size:0.85rem;color:#bbb;
+  transition:all .3s;
+}
+.pstatus-pill.online{
+  background:rgba(60,255,100,0.12);
+  border-color:rgba(60,255,100,0.5);
+  color:#88ff99;
+}
 #capybara-deco{font-size:3rem;margin-bottom:8px;}
 
 /* ── PARTICLES ── */
@@ -226,6 +249,30 @@ body{
 
 /* ── CONN BANNER ── */
 #conn-banner{display:none;}
+
+/* ── SOLO PAD ── */
+#solo-pad{
+  position:fixed; bottom:0; left:0; right:0;
+  display:flex; gap:10px; padding:10px;
+  background:rgba(10,5,20,0.92);
+  border-top:2px solid rgba(255,255,255,0.1);
+  z-index:50;
+}
+#solo-pad.hidden{display:none;}
+.solo-team{ flex:1; }
+.solo-label{ text-align:center;font-family:'Fredoka One',cursive;font-size:1rem;margin-bottom:6px; }
+.solo-digits{
+  display:grid; grid-template-columns:repeat(3,1fr); gap:5px;
+}
+.solo-digits button{
+  padding:10px 0; font-size:1.1rem; font-family:'Fredoka One',cursive;
+  background:rgba(255,255,255,0.1); color:white;
+  border:1px solid rgba(255,255,255,0.2); border-radius:10px;
+  cursor:pointer; transition:background .1s;
+}
+.solo-digits button:active{ background:rgba(255,255,255,0.3); }
+.solo-digits button.del{ background:rgba(200,50,50,0.3); }
+.solo-digits button.ok{ background:rgba(50,200,80,0.4); font-size:0.95rem; }
 </style>
 </head>
 <body>
@@ -241,7 +288,15 @@ body{
       <button class="dbtn medium" onclick="setDiff('medium')">🟡 Normal</button>
       <button class="dbtn hard" onclick="setDiff('hard')">🔴 Difícil</button>
     </div>
-    <button id="play-btn" onclick="startGame()">▶ ¡JUGAR!</button>
+    <!-- Estado de jugadores -->
+    <div id="player-status">
+      <div class="pstatus-pill" id="pstatus-b">🔵 Azul: <span id="pstat-b">esperando</span></div>
+      <div class="pstatus-pill" id="pstatus-r">🔴 Rojo: <span id="pstat-r">esperando</span></div>
+    </div>
+    <!-- Botón principal — se activa cuando ambos están conectados -->
+    <button id="play-btn" onclick="startGame()" disabled>▶ Iniciar con ambos equipos</button>
+    <!-- Botón jugar solo -->
+    <button id="solo-btn" onclick="startSolo()">🖥️ Jugar Solo (sin jugadores)</button>
   </div>
 </div>
 
@@ -392,9 +447,39 @@ function setDiff(d){
   document.querySelectorAll('.dbtn').forEach(b=>b.classList.remove('sel'));
   document.querySelector('.dbtn.'+d).classList.add('sel');
 }
+// Jugadores conectados
+let blueConnected = false, redConnected = false;
+
+function updateLobbyStatus(){
+  const pb = document.getElementById('pstatus-b');
+  const pr = document.getElementById('pstatus-r');
+  const sb = document.getElementById('pstat-b');
+  const sr = document.getElementById('pstat-r');
+  const btn = document.getElementById('play-btn');
+
+  sb.textContent = blueConnected ? '✅ listo' : 'esperando';
+  sr.textContent = redConnected  ? '✅ listo' : 'esperando';
+  pb.className = 'pstatus-pill' + (blueConnected ? ' online' : '');
+  pr.className = 'pstatus-pill' + (redConnected  ? ' online' : '');
+
+  // Activar botón solo si ambos están conectados
+  btn.disabled = !(blueConnected && redConnected);
+}
+
 function startGame(){
   send({type:'startGame',difficulty:selectedDiff});
   document.getElementById('lobby').classList.add('hidden');
+}
+
+function startSolo(){
+  G.soloMode = true;
+  send({type:'startGame',difficulty:selectedDiff,solo:true});
+  document.getElementById('lobby').classList.add('hidden');
+  setTimeout(showSoloControls, 500);
+}
+
+function showSoloControls(){
+  document.getElementById('solo-pad').classList.remove('hidden');
 }
 
 /* ══════════════════════════════════════
@@ -476,8 +561,13 @@ function handleMsg(msg){
       document.getElementById('pause-ov').classList.toggle('show',msg.paused);
       document.getElementById('pauseBtn').textContent=msg.paused?'▶ Reanudar':'⏸ Pausar'; break;
     case 'playerJoined':
-      if(msg.role==='blue'){ const b=document.getElementById('conn-b'); b.textContent='📱 Conectado'; b.className='conn-badge online'; }
-      if(msg.role==='red'){  const b=document.getElementById('conn-r'); b.textContent='📱 Conectado'; b.className='conn-badge online'; }
+      if(msg.role==='blue'){ blueConnected=true;
+        const b=document.getElementById('conn-b'); if(b){b.textContent='📱 Conectado';b.className='conn-badge online';}
+      }
+      if(msg.role==='red'){ redConnected=true;
+        const b=document.getElementById('conn-r'); if(b){b.textContent='📱 Conectado';b.className='conn-badge online';}
+      }
+      updateLobbyStatus();
       break;
     case 'hostLeft': break;
   }
@@ -494,7 +584,11 @@ function np(t,d){ send({type:'input',team:t,digit:d}); }
 function nd(t){ send({type:'delete',team:t}); }
 function sub(t){ send({type:'submit',team:t}); }
 function togglePause(){ send({type:'pause'}); }
-function restartGame(){ send({type:'restart'}); }
+function restartGame(){
+  send({type:'restart'});
+  blueConnected=false; redConnected=false;
+  updateLobbyStatus();
+}
 
 function updateBall(pos){
   ballPos = 0.5 + (pos / 100) * 0.5;
@@ -851,5 +945,27 @@ spawnLobbyParticles();
 /* Start */
 window.addEventListener('load', connectWS);
 </script>
+
+<!-- SOLO PAD — teclado en pantalla para modo sin jugadores -->
+<div id="solo-pad" class="hidden">
+  <div class="solo-team">
+    <div class="solo-label" style="color:#4488ff">🔵 Azul</div>
+    <div class="solo-digits">
+      <button onclick="np('b','1')">1</button><button onclick="np('b','2')">2</button><button onclick="np('b','3')">3</button>
+      <button onclick="np('b','4')">4</button><button onclick="np('b','5')">5</button><button onclick="np('b','6')">6</button>
+      <button onclick="np('b','7')">7</button><button onclick="np('b','8')">8</button><button onclick="np('b','9')">9</button>
+      <button onclick="nd('b')" class="del">⌫</button><button onclick="np('b','0')">0</button><button onclick="sub('b')" class="ok">OK</button>
+    </div>
+  </div>
+  <div class="solo-team">
+    <div class="solo-label" style="color:#ff4444">🔴 Rojo</div>
+    <div class="solo-digits">
+      <button onclick="np('r','1')">1</button><button onclick="np('r','2')">2</button><button onclick="np('r','3')">3</button>
+      <button onclick="np('r','4')">4</button><button onclick="np('r','5')">5</button><button onclick="np('r','6')">6</button>
+      <button onclick="np('r','7')">7</button><button onclick="np('r','8')">8</button><button onclick="np('r','9')">9</button>
+      <button onclick="nd('r')" class="del">⌫</button><button onclick="np('r','0')">0</button><button onclick="sub('r')" class="ok">OK</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>
