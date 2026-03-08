@@ -207,7 +207,9 @@ wss.on('connection', (ws) => {
           gameDifficulty = msg.difficulty || 'easy';
           gameStarted = true; gamePaused = false;
           G = freshState();
-          broadcastAll({ type:'restart', qtext: G.qtext });
+          // En modo solo, el servidor maneja ambos equipos desde la pantalla
+          if (msg.solo) G.soloMode = true;
+          broadcastAll({ type:'restart', qtext: G.qtext, solo: !!msg.solo });
           startTimer();
         }
         break;
