@@ -240,30 +240,7 @@ body{
 #pause-ov .pt{font-family:'Fredoka One',cursive;font-size:2rem;color:white;}
 #pause-ov .ps{color:#aaa;}
 
-/* ── SOLO PAD ── */
-#solo-pad{
-  position:fixed;bottom:0;left:0;right:0;
-  display:flex;gap:10px;padding:10px;
-  background:rgba(10,5,20,0.92);
-  border-top:2px solid rgba(255,255,255,0.1);
-  z-index:50;
-}
-#solo-pad.hidden{display:none;}
-.solo-team{flex:1;}
-.solo-label{
-  text-align:center;font-family:'Fredoka One',cursive;
-  font-size:1rem;margin-bottom:6px;
-}
-.solo-digits{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;}
-.solo-digits button{
-  padding:10px 0;font-size:1.1rem;font-family:'Fredoka One',cursive;
-  background:rgba(255,255,255,0.1);color:white;
-  border:1px solid rgba(255,255,255,0.2);border-radius:10px;
-  cursor:pointer;transition:background .1s;
-}
-.solo-digits button:active{background:rgba(255,255,255,0.3);}
-.solo-digits button.del{background:rgba(200,50,50,0.3);}
-.solo-digits button.ok{background:rgba(50,200,80,0.4);}
+
 </style>
 </head>
 <body>
@@ -390,26 +367,6 @@ body{
   <div class="ps">El profesor pausó el juego</div>
 </div>
 
-<!-- SOLO PAD -->
-<div id="solo-pad" class="hidden">
-  <div class="solo-team">
-    <div class="solo-label" style="color:#4488ff">🔵 Azul</div>
-    <div class="solo-digits">
-      <button onclick="np('b','1')">1</button><button onclick="np('b','2')">2</button><button onclick="np('b','3')">3</button>
-      <button onclick="np('b','4')">4</button><button onclick="np('b','5')">5</button><button onclick="np('b','6')">6</button>
-      <button onclick="np('b','7')">7</button><button onclick="np('b','8')">8</button><button onclick="np('b','9')">9</button>
-      <button onclick="nd('b')" class="del">⌫</button><button onclick="np('b','0')">0</button><button onclick="sub('b')" class="ok">OK</button>
-    </div>
-  </div>
-  <div class="solo-team">
-    <div class="solo-label" style="color:#ff4444">🔴 Rojo</div>
-    <div class="solo-digits">
-      <button onclick="np('r','1')">1</button><button onclick="np('r','2')">2</button><button onclick="np('r','3')">3</button>
-      <button onclick="np('r','4')">4</button><button onclick="np('r','5')">5</button><button onclick="np('r','6')">6</button>
-      <button onclick="np('r','7')">7</button><button onclick="np('r','8')">8</button><button onclick="np('r','9')">9</button>
-      <button onclick="nd('r')" class="del">⌫</button><button onclick="np('r','0')">0</button><button onclick="sub('r')" class="ok">OK</button>
-    </div>
-  </div>
 </div>
 
 <script>
@@ -457,7 +414,7 @@ function startGame(){
 function startSolo(){
   send({type:'startGame',difficulty:selectedDiff,solo:true});
   document.getElementById('lobby').classList.add('hidden');
-  setTimeout(()=>document.getElementById('solo-pad').classList.remove('hidden'),400);
+  
 }
 
 /* ══ MENSAJES ══ */
@@ -525,7 +482,7 @@ function handleMsg(msg){
       updateLobbyStatus();
       document.getElementById('win').classList.remove('show');
       document.getElementById('lobby').classList.remove('hidden');
-      document.getElementById('solo-pad').classList.add('hidden');
+      
       G={pos:0,timer:30,over:false,rnd:1,sb:0,sr:0};
       ballPos=0.5; ballDisplay=0.5;
       document.getElementById('sb').textContent='0';
